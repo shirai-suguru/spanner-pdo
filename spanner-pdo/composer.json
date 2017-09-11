@@ -1,0 +1,37 @@
+{
+    "name": "Spanner-pdo",
+    "type": "library",
+    "description": "A PDO extension for Google Cloud Spanner.",
+    "keywords": [
+        "Spanner",
+        "pdo"
+    ],
+    "homepage": "https://github.com/",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Suguru Shirai",
+            "homepage": "https://github.com/"
+        }
+    ],
+    "require": {
+        "php": ">=5.6.0",
+        "psr/log": "^1.0",
+        "google/cloud": ">=0.36.0"
+
+    },
+    "autoload": {
+        "psr-4": {
+            "SpannerPDO\\Sql\\": "src/"
+        }
+    },
+    "require-dev": {
+        "pds/skeleton": "~1.0",
+        "phpunit/phpunit": "~5.0"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SpannerPDO\\Sql\\": "tests/"
+        }
+    }
+}
