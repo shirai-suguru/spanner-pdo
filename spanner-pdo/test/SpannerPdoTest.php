@@ -6,10 +6,11 @@
  */
 namespace SpannerPDO\Sql;
 
+use Closure;
 use Google\Cloud\Spanner\SpannerClient;
 use Google\Cloud\Spanner\Instance;
 
-class spannerPdoTtest extends \PHPUnit_Framework_TestCase
+class spannerPdoTest extends \PHPUnit_Framework_TestCase
 {
         
     /** @var string instanceId */
@@ -44,12 +45,15 @@ class spannerPdoTtest extends \PHPUnit_Framework_TestCase
 
     public function testParseDSN()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname= ' . self::$databaseId;
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
         Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString);
-            $dsnParts = $pdo->_parseDSN($dsnString);
-            $this->assertEquals(self::instanceId, $dsnParts['instanceId']);
-            $this->assertEquals(self::$databaseId, $dsnParts['databaseId']);
+            $pdo = new PDO($dsnString, "", "");
+            $testInstanceid = "test-instance";
+            $testDatabaseId = "test-database";
+            $testDsnString = 'spanner:instance=' . $testInstanceid . ';dbname=' . $testDatabaseId;
+            $dsnParts = $pdo->_parseDSN($testDsnString);
+            $this->assertEquals($testInstanceid, $dsnParts['instanceId']);
+            $this->assertEquals($testDatabaseId, $dsnParts['databaseId']);
         }, $this, PDO::class)->__invoke();
     }
 }

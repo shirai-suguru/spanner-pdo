@@ -85,8 +85,8 @@ interface PdoInterface
     /**
      * Returns the last inserted autoincrement sequence value.
      *
-     * @param string $name The name of the sequence to check; typically needed 
-     *                     only for PostgreSQL, where it takes the form of 
+     * @param string $name The name of the sequence to check; typically needed
+     *                     only for PostgreSQL, where it takes the form of
      *                     `<table>_<column>_seq`.
      *
      * @return string

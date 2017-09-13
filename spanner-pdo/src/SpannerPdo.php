@@ -6,8 +6,9 @@
  */
 namespace SpannerPDO\Sql;
 
-use PDO as BasePDO;
+use SpannerPDO\Sql\Exception\PDOException;
 use Google\Cloud\Spanner\SpannerClient;
+use PDO as BasePDO;
 
 /**
  * An PDO object for spanner.
@@ -16,7 +17,7 @@ use Google\Cloud\Spanner\SpannerClient;
  */
 class PDO implements PdoInterface
 {
-    const DSN_REGEX = '/^spanner:instance=([\w\d.]+);dbname=([\w\d.]+)/';
+    const DSN_REGEX = '/^spanner:instance=([\w\d.-]+);dbname=([\w\d.-]+)/';
 
     /**
      * @var Google\Cloud\Spanner\SpannerClient

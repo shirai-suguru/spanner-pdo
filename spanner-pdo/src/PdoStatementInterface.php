@@ -13,7 +13,7 @@ use PDO;
  *
  * @package SpannerPDO.Sql
  */
-interface PdoStatementInterface extends Traversable
+interface PdoStatementInterface
 {
     // プロパティ
     // readonly string $queryString;
