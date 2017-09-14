@@ -13,7 +13,7 @@ use PDO;
  *
  * @package SpannerPDO.Sql
  */
-interface PdoInterface
+interface PDOInterface
 {
     /**
      * Begins a transaction and turns off autocommit mode.

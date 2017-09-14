@@ -7,6 +7,7 @@
 namespace SpannerPDO\Sql;
 
 use Closure;
+use SpannerPDO\Sql\Exception\PDOException;
 use Google\Cloud\Spanner\SpannerClient;
 use Google\Cloud\Spanner\Instance;
 
@@ -48,12 +49,25 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
         $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
         Closure::bind(function () use ($dsnString) {
             $pdo = new PDO($dsnString, "", "");
+            
             $testInstanceid = "test-instance";
             $testDatabaseId = "test-database";
             $testDsnString = 'spanner:instance=' . $testInstanceid . ';dbname=' . $testDatabaseId;
             $dsnParts = $pdo->_parseDSN($testDsnString);
             $this->assertEquals($testInstanceid, $dsnParts['instanceId']);
             $this->assertEquals($testDatabaseId, $dsnParts['databaseId']);
+
+            $this->expectException(PDOException::class);
+            $testDsnString = 'SPANNER:instance=' . $testInstanceid . ';dbname=' . $testDatabaseId;
+            $dsnParts = $pdo->_parseDSN($testDsnString);
+            
         }, $this, PDO::class)->__invoke();
     }
+
+    public static function tearDownAfterClass()
+    {
+        if (self::$instance && !getenv('GOOGLE_SPANNER_KEEP_INSTANCE')) {
+            self::$instance->delete();
+        }
+    }    
 }

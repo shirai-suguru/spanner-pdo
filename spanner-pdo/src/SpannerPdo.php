@@ -15,7 +15,7 @@ use PDO as BasePDO;
  *
  * @package SpannerPDO.sql
  */
-class PDO implements PdoInterface
+class PDO implements PDOInterface
 {
     const DSN_REGEX = '/^spanner:instance=([\w\d.-]+);dbname=([\w\d.-]+)/';
 
