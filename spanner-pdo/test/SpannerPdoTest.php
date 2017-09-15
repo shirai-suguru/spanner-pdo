@@ -102,7 +102,7 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
 
             $pdo->beginTransaction();
             $this->assertTrue($pdo->commit());
-            $this->assertTrue($pdo->_transaction->state() === Transaction::STATE_COMMITTED);
+            $this->assertTrue($pdo->transaction->state() === Transaction::STATE_COMMITTED);
 
             //２回目のcommitはfalseをかえす
             $this->assertFalse($pdo->commit());
@@ -118,7 +118,7 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
 
             $pdo->beginTransaction();
             $this->assertTrue($pdo->rollback());
-            $this->assertTrue($pdo->_transaction->state() === Transaction::STATE_ROLLED_BACK);
+            $this->assertTrue($pdo->transaction->state() === Transaction::STATE_ROLLED_BACK);
 
             //２回目のrollbackはfalseをかえす
             $this->assertFalse($pdo->rollback());

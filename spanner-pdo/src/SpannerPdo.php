@@ -23,22 +23,22 @@ class PDO implements PDOInterface
     /**
      * @var Google\Cloud\Spanner\SpannerClient
      */
-    private $_spannerClient;
+    private $spannerClient;
 
     /**
      * @var Google\Cloud\Spanner\Instance
      */
-    private $_instance;
+    private $instance;
 
     /**
      * @var Google\Cloud\Spanner\Database
      */
-    private $_database;
+    private $database;
 
     /**
      * @var Google\Cloud\Spanner\Transaction
      */
-    private $_transaction;
+    private $transaction;
 
     /**
      * PDO constructer //TODO option forceCreateDB
@@ -51,9 +51,9 @@ class PDO implements PDOInterface
     {
         $dsnParts = self::_parseDSN($dsn);
 
-        $this->_spannerClient = new SpannerClient();
-        $this->_instance = $this->_spannerClient->instance($dsnParts['instanceId']);
-        $this->_database = $this->_instance->database($dsnParts['databaseId']);
+        $this->spannerClient = new SpannerClient();
+        $this->instance = $this->spannerClient->instance($dsnParts['instanceId']);
+        $this->database = $this->instance->database($dsnParts['databaseId']);
     }
 
     /**
@@ -79,8 +79,8 @@ class PDO implements PDOInterface
      */
     public function beginTransaction()
     {
-        assert(!empty($this->_database), "Database not found!");
-        $this->_transaction = $this->_database->transaction();
+        assert(!empty($this->database), "Database not found!");
+        $this->transaction = $this->database->transaction();
         return true;
     }
 
@@ -91,8 +91,8 @@ class PDO implements PDOInterface
     {
         $ret = false;
         if ($this->inTransaction()) {
-            $commitTimeStamp = $this->_transaction->commit();
-            if (!empty($commitTimeStamp) && $this->_transaction->state() === Transaction::STATE_COMMITTED) {
+            $commitTimeStamp = $this->transaction->commit();
+            if (!empty($commitTimeStamp) && $this->transaction->state() === Transaction::STATE_COMMITTED) {
                 $ret = true;
             }
         }
@@ -137,7 +137,7 @@ class PDO implements PDOInterface
     public function inTransaction()
     {
         $ret = false;
-        if (!empty($this->_transaction) &&  $this->_transaction->state() === Transaction::STATE_ACTIVE) {
+        if (!empty($this->transaction) &&  $this->transaction->state() === Transaction::STATE_ACTIVE) {
             $ret = true;
         }
         return $ret;
@@ -182,8 +182,8 @@ class PDO implements PDOInterface
     {
         $ret = false;
         if ($this->inTransaction()) {
-            $this->_transaction->rollback();
-            if ($this->_transaction->state() === Transaction::STATE_ROLLED_BACK) {
+            $this->transaction->rollback();
+            if ($this->transaction->state() === Transaction::STATE_ROLLED_BACK) {
                 $ret = true;
             }
         }
