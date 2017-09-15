@@ -8,6 +8,7 @@ namespace SpannerPDO\Sql;
 
 use SpannerPDO\Sql\Exception\PDOException;
 use Google\Cloud\Spanner\SpannerClient;
+use Google\Cloud\Spanner\Transaction;
 use PDO as BasePDO;
 
 /**
@@ -35,7 +36,12 @@ class PDO implements PDOInterface
     private $_database;
 
     /**
-     * PDO constructer
+     * @var Google\Cloud\Spanner\Transaction
+     */
+    private $_transaction;
+
+    /**
+     * PDO constructer //TODO option forceCreateDB
      *
      * @param string $dsn      expect) spanner:instance={instanceId};dbname={databaseId}
      * @param string $username not use. for compatibility.
@@ -73,6 +79,8 @@ class PDO implements PDOInterface
      */
     public function beginTransaction()
     {
+        assert(!empty($this->_database), "Database not found!");
+        $this->_transaction = $this->_database->transaction();
         return true;
     }
 
@@ -81,7 +89,14 @@ class PDO implements PDOInterface
      */
     public function commit()
     {
-        return true;
+        $ret = false;
+        if ($this->inTransaction()) {
+            $commitTimeStamp = $this->_transaction->commit();
+            if (!empty($commitTimeStamp) && $this->_transaction->state() === Transaction::STATE_COMMITTED) {
+                $ret = true;
+            }
+        }
+        return $ret;
     }
 
     /**
@@ -121,7 +136,11 @@ class PDO implements PDOInterface
      */
     public function inTransaction()
     {
-        return true;
+        $ret = false;
+        if (!empty($this->_transaction) &&  $this->_transaction->state() === Transaction::STATE_ACTIVE) {
+            $ret = true;
+        }
+        return $ret;
     }
 
     /**
@@ -161,7 +180,14 @@ class PDO implements PDOInterface
      */
     public function rollBack()
     {
-        return true;
+        $ret = false;
+        if ($this->inTransaction()) {
+            $this->_transaction->rollback();
+            if ($this->_transaction->state() === Transaction::STATE_ROLLED_BACK) {
+                $ret = true;
+            }
+        }
+        return $ret;
     }
 
     /**

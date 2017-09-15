@@ -24,11 +24,15 @@ class PDOStatement implements PDOStatementInterface, IteratorAggregate
         $this->pdo     = $pdo;
         $this->options = array_merge($this->options, $options);
     }
-
-    public function getIterator ()
+    
+    /**
+     * {@Inheritdoc}
+     */
+    public function getIterator()
     {
-
+        return new ArrayIterator($this->fetchAll());
     }
+
     public function bindColumn(mixed $column, mixed &$param)
     {
         return true;
