@@ -19,6 +19,7 @@ use PDO as BasePDO;
 class PDO implements PDOInterface
 {
     const DSN_REGEX = '/^spanner:instance=([\w\d.-]+);dbname=([\w\d.-]+)/';
+    const INSERT_REGEX = '/^[i|I][n|N][s|S][e|E][r|R][t|T]\s+[i|I][n|N][t|T][o|O]\s+([\w\d-]+)\s*([\w\d\W]*)values\s*([\w\d\W]*)/';
 
     /**
      * @var Google\Cloud\Spanner\SpannerClient
@@ -120,7 +121,83 @@ class PDO implements PDOInterface
      */
     public function exec($statement)
     {
-        return 1;
+        $ret = 0;
+        // Check CreateDDL or not
+        if (preg_match('/create/i', $statement)) {
+            $operation = $this->database->updateDdl($statement);
+            $operation->pollUntilComplete();
+            if ($operation->done()) {
+                $ret = 1;
+            }
+        }
+        // Check Insert or not
+        if (preg_match('/insert/i', $statement)) {
+            $insertObj = $this->parseInsert($statement);
+            if ($this->inTransaction()) {
+                $insertTransaction = $this->transaction->insert(
+                    $insertObj['table'],
+                    $insertObj['data']
+                );
+                if ($insertTransaction) {
+                    $ret = 1;
+                }
+            } else {
+                $insertTimeStamp = $this->database->insert(
+                    $insertObj['table'],
+                    $insertObj['data']
+                );
+                if ($insertTimeStamp) {
+                    $ret = 1;
+                }
+            }
+        }
+        return $ret;
+    }
+
+    private function parseInsert($sql)
+    {
+        $matches = array();
+
+        // check string 'spanner'
+        if (!preg_match(static::INSERT_REGEX, $sql, $matches)) {
+            throw new PDOException(sprintf('Invalid Insert statement %s', $sql));
+        }
+        //テーブル名取得
+        $table = $matches[1];
+        //列名取得
+        $columns = [];
+        $columNum = 0;
+        preg_match('/\(\s*([\w\d\W-]+)\s*\)/', $matches[2], $columnsMatch);
+        $columnsQuote = preg_split('/,/', $columnsMatch[1]);
+        if ($columnsQuote === false) {
+            $columns = array(trim(trim($columnsMatch[1], '\'')));
+        } else {
+            foreach ($columnsQuote as $value) {
+                $columNum = array_push($columns, trim(trim($value), '\''));
+            }
+        }
+        //値取得
+        $columnValues = [];
+        $valueNum = 0;
+        preg_match('/\(\s*([\w\d\W-]+)\s*\)/', $matches[3], $valuesMatch);
+        $valuesQuote = preg_split('/,/', $valuesMatch[1]);
+        if ($valuesQuote === false) {
+            $columnValues = array(trim(trim($valuesMatch[1]), '\''));
+        } else {
+            foreach ($valuesQuote as $value) {
+                $valueNum = array_push($columnValues, trim(trim($value), '\''));
+            }
+        }
+
+        if ($columNum != $valueNum) {
+            throw new PDOException(sprintf('Invalid statement column number is not equals values number %s', $sql));
+        }
+
+        $dataArray = array();
+        for ($i=0; $i<$columNum; $i++) {
+            $dataArray[$columns[$i]] = $columnValues[$i];
+        }
+        return ['table' => $matches[1], 'data' => $dataArray];
     }
 
     /**

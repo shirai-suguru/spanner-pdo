@@ -122,8 +122,43 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
 
             //２回目のrollbackはfalseをかえす
             $this->assertFalse($pdo->rollback());
-            
         }, $this, PDO::class)->__invoke();
+    }
+
+    public function testParseInsert()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        Closure::bind(function () use ($dsnString) {
+            $pdo = new PDO($dsnString, "", "");
+
+            $queryParts = $pdo->parseInsert("INSERT INTO test ('testColumn') values (1);");
+            $this->assertTrue($queryParts['table'] === "test");
+            $this->assertTrue(array_key_exists('testColumn', $queryParts['data']));
+            $this->assertTrue($queryParts['data']['testColumn'] == 1);
+        }, $this, PDO::class)->__invoke();
+    }
+
+    public function testExec()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        $pdo = new PDO($dsnString, "", "");
+
+        $ret = $pdo->exec('CREATE TABLE Singers (
+            SingerId     INT64 NOT NULL,
+            FirstName    STRING(1024),
+            LastName     STRING(1024),
+            SingerInfo   BYTES(MAX)
+        ) PRIMARY KEY (SingerId)');
+        $this->assertEquals($ret, 1);
+
+        $retInt = $pdo->exec("INSERT INTO Singers ('SingerId', 'FirstName') values (1, 'hogefuga');");
+        $this->assertEquals($retInt, 1);
+
+        $retInt = $pdo->exec("INSERT INTO Singers ('SingerId') values (2);");
+        $this->assertEquals($retInt, 1);
+
+        $retInt = $pdo->exec("INSERT INTO test ('test') values (1);");
+        $this->assertEquals($retInt, 0);
     }
     
     public static function tearDownAfterClass()
