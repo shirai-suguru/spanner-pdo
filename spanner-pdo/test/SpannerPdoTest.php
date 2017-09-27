@@ -11,8 +11,9 @@ use SpannerPDO\Sql\Exception\PDOException;
 use Google\Cloud\Spanner\SpannerClient;
 use Google\Cloud\Spanner\Transaction;
 use Google\Cloud\Spanner\Instance;
+use Google\Cloud\Core\Exception\NotFoundException;
 
-class spannerPdoTest extends \PHPUnit_Framework_TestCase
+class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 {
         
     /** @var string instanceId */
@@ -138,11 +139,27 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
         }, $this, PDO::class)->__invoke();
     }
 
+    public function testParseUpdate()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        Closure::bind(function () use ($dsnString) {
+            $pdo = new PDO($dsnString, "", "");
+
+            $queryParts = $pdo->parseUpdate("Update  test set testColumn = 1 WHERE ID = 1;");
+            $this->assertTrue($queryParts['table'] === "test");
+            $this->assertTrue(array_key_exists('testColumn', $queryParts['data']));
+            $this->assertTrue($queryParts['data']['testColumn'] == 1);
+            $this->assertTrue($queryParts['where'] === 'ID = 1');
+        }, $this, PDO::class)->__invoke();
+    }
+
+    //TOOD insert と updateのテスト分離
     public function testExec()
     {
         $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
         $pdo = new PDO($dsnString, "", "");
 
+        //Create statement
         $ret = $pdo->exec('CREATE TABLE Singers (
             SingerId     INT64 NOT NULL,
             FirstName    STRING(1024),
@@ -151,14 +168,25 @@ class spannerPdoTest extends \PHPUnit_Framework_TestCase
         ) PRIMARY KEY (SingerId)');
         $this->assertEquals($ret, 1);
 
+        //Insert statement
         $retInt = $pdo->exec("INSERT INTO Singers ('SingerId', 'FirstName') values (1, 'hogefuga');");
         $this->assertEquals($retInt, 1);
 
         $retInt = $pdo->exec("INSERT INTO Singers ('SingerId') values (2);");
         $this->assertEquals($retInt, 1);
 
+        $this->expectException(PDOException::class);
+        $retInt = $pdo->exec("INSERT  Singers ('test') values (1);");
+ 
+        $this->expectException(PDOException::class);
+        $retInt = $pdo->exec("INSERT  INTO Singers ('SingerId') values (1,2);");
+
+        $this->expectException(NotFoundException::class);
         $retInt = $pdo->exec("INSERT INTO test ('test') values (1);");
-        $this->assertEquals($retInt, 0);
+
+        //Update statement
+        $retInt = $pdo->exec("Update Singers set FirstName = 'hoge' WHERE SingerId = 1;");
+        $this->assertEquals($retInt, 1);
     }
     
     public static function tearDownAfterClass()
