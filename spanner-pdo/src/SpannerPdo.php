@@ -52,7 +52,7 @@ class PDO implements PDOInterface
      */
     public function __construct(string $dsn, string $username, string $password)
     {
-        $dsnParts = self::_parseDSN($dsn);
+        $dsnParts = self::parseDSN($dsn);
 
         $this->spannerClient = new SpannerClient();
         $this->instance = $this->spannerClient->instance($dsnParts['instanceId']);
@@ -66,7 +66,7 @@ class PDO implements PDOInterface
      *
      * @return array An array of ['instanceId' => instanceId,'databaseId' => databaseId]
      */
-    private function _parseDSN(string $dsn)
+    private function parseDSN(string $dsn)
     {
         $matches = array();
 
@@ -132,33 +132,76 @@ class PDO implements PDOInterface
                 $ret = 1;
             }
         }
-        // Check Insert or not
+        //Database connection object
+        $dbObj = null;
+        if ($this->inTransaction()) {
+            $dbObj = $this->transaction;
+        } else {
+            $dbObj = $this->database;
+        }
+
+            // Check Insert or not
         if (preg_match('/insert/i', $statement)) {
             $insertObj = $this->parseInsert($statement);
-            if ($this->inTransaction()) {
-                $insertTransaction = $this->transaction->insert(
-                    $insertObj['table'],
-                    $insertObj['data']
-                );
-                if ($insertTransaction) {
+            $insertTransaction = $dbObj->insert(
+                $insertObj['table'],
+                $insertObj['data']
+            );
+            if ($insertTransaction) {
                     $ret = 1;
-                }
-            } else {
-                $insertTimeStamp = $this->database->insert(
-                    $insertObj['table'],
-                    $insertObj['data']
-                );
-                if ($insertTimeStamp) {
-                    $ret = 1;
-                }
             }
         }
 
-        // Check Insert or not
+            // Check Insert or not
         if (preg_match('/update/i', $statement)) {
             $updateObj = $this->parseUpdate($statement);
+
+            $primaryKeyColumns = $this->getPKeyFromTable($updateObj['table']);
+
+            $sql = 'SELECT ';
+            foreach ($primaryKeyColumns as $columName) {
+                $sql = $sql . ' ' . $columName . ',';
+            }
+            $sql = trim($sql, ',');
+
+            $updateRows = [];
+            $results = $dbObj->execute($sql . ' FROM ' . $updateObj['table'] . ' WHERE ' . $updateObj['where']);
+            foreach ($results->rows() as $row) {
+                array_push($updateRows, array_merge($row, $updateObj['data']));
+            }
+
+            $insertTransaction = $dbObj->updateBatch($updateObj['table'], $updateRows);
+            if ($insertTransaction) {
+                $ret = count($updateRows);
+            }
         }
+        
         return $ret;
+    }
+
+    /**
+     * Get table primay key
+     *
+     * @param string $tableName table name
+     *
+     * @return array Primary Key column name
+     */
+    private function getPKeyFromTable(string $tableName)
+    {
+        $results = $this->database->execute('SELECT * FROM ' . $tableName . ' LIMIT 1');
+        foreach ($results->rows() as $row) {
+        }
+
+        $primaryKeyColumns = [];
+        $primarykeyColumnNum = 0;
+        $metadata = $results->metadata();
+        foreach ($metadata['rowType']['fields'] as $meta) {
+            if ($meta['type']['code'] === 2) {
+                $primaryKeyColumnNum = array_push($primaryKeyColumns, $meta['name']);
+            }
+        }
+    
+        return $primaryKeyColumns;
     }
 
     private function parseInsert($sql)
@@ -209,6 +252,8 @@ class PDO implements PDOInterface
         }
         //テーブル名取得
         $table = $matches[1];
+        //Where句取得
+        $where = $matches[3];
 
         //更新する値取得
         $upColumnValues = [];
@@ -227,12 +272,11 @@ class PDO implements PDOInterface
             throw new PDOException(sprintf('Invalid statement column number is not equals values number %s', $sql));
         }
 
-        $dataArray = array();
         for ($i=0; $i<$upColumnNum; $i++) {
             $dataArray[$upColumnValues[$i]] = $upValues[$i];
         }
         
-        return ['table' => $matches[1], 'data' => $dataArray, 'where' => trim(trim($matches[3]))];
+        return ['table' => $table, 'data' => $dataArray, 'where' => trim($where)];
     }
     /**
      * {@inheritDoc}

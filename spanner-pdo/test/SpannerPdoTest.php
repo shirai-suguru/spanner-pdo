@@ -62,13 +62,13 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
             $testInstanceid = "test-instance";
             $testDatabaseId = "test-database";
             $testDsnString = 'spanner:instance=' . $testInstanceid . ';dbname=' . $testDatabaseId;
-            $dsnParts = $pdo->_parseDSN($testDsnString);
+            $dsnParts = $pdo->parseDSN($testDsnString);
             $this->assertEquals($testInstanceid, $dsnParts['instanceId']);
             $this->assertEquals($testDatabaseId, $dsnParts['databaseId']);
 
             $this->expectException(PDOException::class);
             $testDsnString = 'SPANNER:instance=' . $testInstanceid . ';dbname=' . $testDatabaseId;
-            $dsnParts = $pdo->_parseDSN($testDsnString);
+            $dsnParts = $pdo->parseDSN($testDsnString);
         }, $this, PDO::class)->__invoke();
     }
 
@@ -150,11 +150,19 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
             $this->assertTrue(array_key_exists('testColumn', $queryParts['data']));
             $this->assertTrue($queryParts['data']['testColumn'] == 1);
             $this->assertTrue($queryParts['where'] === 'ID = 1');
+
+            $queryParts = $pdo->parseUpdate("Update  test2 set testColumn = 1, test2Column = 2 WHERE ID = 1 AND test = 'hoge';");
+            $this->assertTrue($queryParts['table'] === "test2");
+            $this->assertTrue(array_key_exists('testColumn', $queryParts['data']));
+            $this->assertTrue(array_key_exists('test2Column', $queryParts['data']));
+            $this->assertTrue($queryParts['data']['testColumn'] == 1);
+            $this->assertTrue($queryParts['data']['test2Column'] == 2);
+            $this->assertTrue($queryParts['where'] === "ID = 1 AND test = 'hoge'");
         }, $this, PDO::class)->__invoke();
     }
 
-    //TOOD insert と updateのテスト分離
-    public function testExec()
+
+    public function testExecCreate()
     {
         $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
         $pdo = new PDO($dsnString, "", "");
@@ -168,6 +176,42 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
         ) PRIMARY KEY (SingerId)');
         $this->assertEquals($ret, 1);
 
+        $ret = $pdo->exec('CREATE TABLE Albums (
+            SingerId     INT64 NOT NULL,
+            AlbumId      INT64 NOT NULL,
+            AlbumTitle   STRING(MAX)
+        ) PRIMARY KEY (SingerId, AlbumId),
+        INTERLEAVE IN PARENT Singers ON DELETE CASCADE');
+        $this->assertEquals($ret, 1);
+    }
+
+    /**
+     * @test
+     * @depends testExecCreate
+     */
+    public function testGetPKeyFromTable()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        Closure::bind(function () use ($dsnString) {
+            $pdo = new PDO($dsnString, "", "");
+            $tablePK = $pdo->getPKeyFromTable('Singers');
+            $this->assertTrue(in_array('SingerId', $tablePK, true));
+ 
+            $tablePK = $pdo->getPKeyFromTable('Albums');
+            $this->assertTrue(in_array('SingerId', $tablePK, true));
+            $this->assertTrue(in_array('AlbumId', $tablePK, true));
+        }, $this, PDO::class)->__invoke();
+    }
+ 
+    /**
+     * @test
+     * @depends testExecCreate
+     */
+    public function testExecInsert()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        $pdo = new PDO($dsnString, "", "");
+    
         //Insert statement
         $retInt = $pdo->exec("INSERT INTO Singers ('SingerId', 'FirstName') values (1, 'hogefuga');");
         $this->assertEquals($retInt, 1);
@@ -175,6 +219,13 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
         $retInt = $pdo->exec("INSERT INTO Singers ('SingerId') values (2);");
         $this->assertEquals($retInt, 1);
 
+        $retInt = $pdo->exec("INSERT INTO Albums ('SingerId', 'AlbumId', 'AlbumTitle') values (1, 1, 'Total Junk');");
+        $this->assertEquals($retInt, 1);
+    
+        $retInt = $pdo->exec("INSERT INTO Albums ('SingerId', 'AlbumId', 'AlbumTitle') values (1, 2, 'Junk Food');");
+        $this->assertEquals($retInt, 1);
+
+        
         $this->expectException(PDOException::class);
         $retInt = $pdo->exec("INSERT  Singers ('test') values (1);");
  
@@ -183,10 +234,28 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
         $this->expectException(NotFoundException::class);
         $retInt = $pdo->exec("INSERT INTO test ('test') values (1);");
+    }
+
+    /**
+     * @test
+     * @depends testExecInsert
+     */
+    public function testExecUpdate()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        $pdo = new PDO($dsnString, "", "");
 
         //Update statement
         $retInt = $pdo->exec("Update Singers set FirstName = 'hoge' WHERE SingerId = 1;");
         $this->assertEquals($retInt, 1);
+
+        //Update statement
+        $retInt = $pdo->exec("Update Albums set AlbumTitle = 'hoge' WHERE SingerId = 1 AND AlbumId = 1;");
+        $this->assertEquals($retInt, 1);
+
+        //Update statement
+        $retInt = $pdo->exec("Update Albums set AlbumTitle = 'fuga' WHERE SingerId = 1;");
+        $this->assertEquals($retInt, 2);
     }
     
     public static function tearDownAfterClass()
