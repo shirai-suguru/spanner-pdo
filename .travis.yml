@@ -22,9 +22,10 @@ dist: trusty
 
 matrix:
   include:
-    - php: 5.6
-      env: RUN_DEVSERVER_TESTS=true RUN_CS_FIXER=true
-    - php: 7.0
+#    - php: 5.6
+#      env: RUN_DEVSERVER_TESTS=true RUN_CS_FIXER=true
+#    - php: 7.0
+    - php: 7.2
 
 env:
   global:

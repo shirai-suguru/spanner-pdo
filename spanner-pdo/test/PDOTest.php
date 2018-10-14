@@ -13,7 +13,7 @@ use Google\Cloud\Spanner\Transaction;
 use Google\Cloud\Spanner\Instance;
 use Google\Cloud\Core\Exception\NotFoundException;
 
-class SpannerPdoTest extends \PHPUnit_Framework_TestCase
+class PDOTest extends \PHPUnit_Framework_TestCase
 {
         
     /** @var string instanceId */
@@ -24,6 +24,10 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
         
     /** @var Instance Instance */
     protected static $instance;
+
+    /** @var PDO pdo object */
+    protected static $pdo;
+
 
     public static function setUpBeforeClass()
     {
@@ -50,14 +54,19 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
         $operation = $instance->createDatabase(self::$databaseId);
         $operation->pollUntilComplete();
+
     }
 
+    private function getPDO()
+    {
+        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
+        return new PDO($dsnString, "", "");
+    }
 
     public function testParseDSN()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        Closure::bind(function () use ($pdo) {
 
             $testInstanceid = "test-instance";
             $testDatabaseId = "test-database";
@@ -74,8 +83,8 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
     public function testBeginTransaction()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        
         $ret = $pdo->beginTransaction();
         if ($ret === true) {
             $this->assertTrue($pdo->inTransaction());
@@ -88,17 +97,16 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
      */
     public function testInTransaction()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        
         $this->assertFalse($pdo->inTransaction());
     }
 
     public function testCommit()
     {
-
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        
+        Closure::bind(function () use ($pdo) {
             $this->assertFalse($pdo->commit());
 
             $pdo->beginTransaction();
@@ -112,9 +120,9 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
     public function testRollBack()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        
+        Closure::bind(function () use ($pdo) {
             $this->assertFalse($pdo->rollback());
 
             $pdo->beginTransaction();
@@ -128,9 +136,8 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
     public function testParseInsert()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        Closure::bind(function () use ($pdo) {
 
             $queryParts = $pdo->parseInsert("INSERT INTO test ('testColumn') values (1);");
             $this->assertTrue($queryParts['table'] === "test");
@@ -141,9 +148,8 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
     public function testParseUpdate()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        Closure::bind(function () use ($pdo) {
 
             $queryParts = $pdo->parseUpdate("Update  test set testColumn = 1 WHERE ID = 1;");
             $this->assertTrue($queryParts['table'] === "test");
@@ -164,8 +170,7 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
 
     public function testExecCreate()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
 
         //Create statement
         $ret = $pdo->exec('CREATE TABLE Singers (
@@ -191,9 +196,8 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
      */
     public function testGetPKeyFromTable()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        Closure::bind(function () use ($dsnString) {
-            $pdo = new PDO($dsnString, "", "");
+        $pdo = $this->getPDO();
+        Closure::bind(function () use ($pdo) {
             $tablePK = $pdo->getPKeyFromTable('Singers');
             $this->assertTrue(in_array('SingerId', $tablePK, true));
  
@@ -209,9 +213,8 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
      */
     public function testExecInsert()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        $pdo = new PDO($dsnString, "", "");
-    
+        $pdo = $this->getPDO();
+        
         //Insert statement
         $retInt = $pdo->exec("INSERT INTO Singers ('SingerId', 'FirstName') values (1, 'hogefuga');");
         $this->assertEquals($retInt, 1);
@@ -242,9 +245,7 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
      */
     public function testExecUpdate()
     {
-        $dsnString = 'spanner:instance=' . self::$instanceId . ';dbname=' . self::$databaseId;
-        $pdo = new PDO($dsnString, "", "");
-
+        $pdo = $this->getPDO();
         //Update statement
         $retInt = $pdo->exec("Update Singers set FirstName = 'hoge' WHERE SingerId = 1;");
         $this->assertEquals($retInt, 1);
@@ -258,6 +259,17 @@ class SpannerPdoTest extends \PHPUnit_Framework_TestCase
         $this->assertEquals($retInt, 2);
     }
     
+    /**
+     * @test
+     * @depends testExecCreate
+     */
+    public function testPrepare()
+    {
+        $pdo = $this->getPDO();
+        $sth = $pdo->prepare("SELECT * FROM Singers");
+        $this->assertInstanceOf(PDOStatement::class, $sth);
+    }
+
     public static function tearDownAfterClass()
     {
         if (self::$instance && !getenv('GOOGLE_SPANNER_KEEP_INSTANCE')) {

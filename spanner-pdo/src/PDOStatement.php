@@ -6,19 +6,47 @@
  */
 namespace SpannerPDO\Sql;
 
+use PDO as BasePDO;
+use SpannerPDO\Sql\PDO;
 use IteratorAggregate;
 use Traversable;
+use Google\Cloud\Spanner\Result;
 
 class PDOStatement implements PDOStatementInterface, IteratorAggregate
 {
+    
     /**
+     * @var SpannerPDO\Sql\PDO
+     */
+    private $pdo;
+
+    /**
+     * @var string
+     */
+    private $sql;
+
+    /**
+     * @var array
+     */
+    private $options = [
+        'fetchMode'          => null,
+        'fetchColumn'        => 0,
+        'fetchClass'         => 'array',
+    ];
+
+    /**
+     * @var Google\Cloud\Spanner\Result|null
+     */
+    private $results;
+
+     /**
      * PDOStatement Object
      *
      * @param PDOInterface $pdo     Spanner PDO Object
      * @param string       $sql     SQL string
      * @param array        $options option
      */
-    public function __construct(PDOInterface $pdo, $sql, array $options)
+    public function __construct(PDOInterface $pdo, $sql, array $options = [])
     {
         $this->sql     = $sql;
         $this->pdo     = $pdo;
@@ -74,7 +102,13 @@ class PDOStatement implements PDOStatementInterface, IteratorAggregate
 
     public function execute(array $input_parameters = null)
     {
-        return true;
+        $ret = false;
+
+        // Check SELECT 
+        if (preg_match('/select/i', $$this->sql)) {
+            
+        }
+        return $ret;
     }
 
     public function fetch(int $fetch_style = PDO::ATTR_DEFAULT_FETCH_MODE, int $cursor_orientation = PDO::FETCH_ORI_NEXT)
